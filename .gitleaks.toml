@@ -1,0 +1,62 @@
+# Gitleaks config for hermes-tray-lib
+#
+# Blocks accidental commits of:
+#   - Tailscale CGNAT addresses (100.64.0.0/10)
+#   - Personal home directory paths
+#   - Personal email addresses
+#
+# Standard gitleaks rules (AWS keys, GitHub PATs, Stripe keys, etc.) are
+# inherited from the default config bundled with the gitleaks binary.
+
+title = "hermes-tray-lib secret scan"
+
+# -----------------------------------------------------------------------------
+# Custom rules
+# -----------------------------------------------------------------------------
+
+# Tailscale CGNAT range (100.64.0.0/10)
+[[rules]]
+  id = "tailscale-ipv4"
+  description = "Tailscale CGNAT IPv4 address — should not be committed"
+  regex = '''100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'''
+  tags = ["ip", "tailscale", "network"]
+
+# Personal home directory paths
+[[rules]]
+  id = "user-home-path"
+  description = "User home directory path — should not be committed"
+  regex = '''/home/[a-z][a-z0-9_-]*'''
+  tags = ["path", "filesystem"]
+
+# Personal email
+[[rules]]
+  id = "personal-email"
+  description = "Personal email address — should not be committed"
+  regex = '''[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'''
+  tags = ["email"]
+
+  # Allow common non-personal patterns: example.com, docs placeholders, etc.
+  [rules.allowlist]
+    regexes = [
+      '''[A-Za-z0-9._%+-]+@(example|example\.com|users\.noreply\.github\.com)''',
+    ]
+    paths = [
+      '''README\.md$''',  # docs may use example addresses
+    ]
+
+# -----------------------------------------------------------------------------
+# Global allowlist — paths that legitimately contain IP-like strings
+# -----------------------------------------------------------------------------
+
+[allowlist]
+  paths = [
+    '''\.gitleaks\.toml$''',         # this config file contains the regex pattern itself
+    '''\.github/workflows/.*\.yml$''',  # CI may reference test IPs
+    '''tests/.*\.py$''',             # test files contain patterns-as-data (the FORBIDDEN list)
+  ]
+
+[extend]
+# Use the default gitleaks ruleset (AWS, GitHub PATs, Stripe keys, etc.) plus
+# our custom rules above. Disable default rules by listing their IDs in
+# `disabledRules` if any false-positive becomes a problem.
+useDefault = true

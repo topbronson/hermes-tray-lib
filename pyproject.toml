@@ -1,0 +1,100 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hermes-tray-lib"
+version = "0.1.0"
+description = "Shared infrastructure for Hermes-* tray indicators (AppIndicator3, lifecycle, state machine, icon swap)."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "topbronson"}]
+keywords = ["hermes", "tray", "appindicator", "linux", "gnome"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    # PyGObject is a system-level package on most distros (apt install
+    # python3-gi gir1.2-gtk-3.0 gir1.2-appindicator3-0.1) and pulls in
+    # the entire GTK stack. We don't pin it as a pip dep because the
+    # build requires system headers that aren't always present.
+    # Tray-indicator install scripts are responsible for installing it.
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pre-commit>=3.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hermes_tray"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "RET", "SIM", "TCH", "RUF"]
+# UP037 wants us to drop quotes from type annotations, but we use string
+# forward refs for types imported under TYPE_CHECKING — they're needed for
+# runtime evaluation under `from __future__ import annotations`.
+ignore = ["E501", "UP037"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",   # asserts are required
+    "S105",   # hard-coded "secret" strings are fine in tests
+    "S106",   # same, for hard-coded passwords
+    "PT018",  # compound asserts are clearer for simple checks
+    "RUF059", # unused unpacked args are common in mock call_args
+    "TC003",  # standard library imports are fine at top level
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# gi is a C extension; mypy can't introspect its types. All gi.repository
+# members are typed as Any. We can safely ignore all errors that arise
+# from interacting with gi in source code.
+module = "gi"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "gi.repository.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --cov=hermes_tray --cov-report=term-missing --cov-fail-under=80"
