@@ -101,7 +101,7 @@ __all__ = [
     "watcher",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 _LOGGER = logging.getLogger(__name__)
 
