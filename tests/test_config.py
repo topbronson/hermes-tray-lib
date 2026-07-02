@@ -133,6 +133,102 @@ def test_env_var_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cfg.host == "10.0.0.1"
 
 
+def test_url_rebuilds_when_only_host_overridden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HERMES_*_HOST env override must also update the URL's netloc.
+
+    Regression: previously the URL was built from the default host
+    *before* env-var overrides, so setting HERMES_*_HOST alone left
+    the URL pointing at "localhost" while the liveness probe pointed
+    at the real address. The Open menu opened the wrong URL.
+    """
+    monkeypatch.setenv("HERMES_THING_HOST", "10.0.0.1")
+    cfg = Config(
+        name="thing",
+        title="T",
+        bin="t",
+        subcommand=("s",),
+        host="localhost",
+        port=8080,
+        url="http://localhost:8080",
+        icon_dir=Path("/"),
+        icon_fallback="f",
+    )
+    assert cfg.url == "http://10.0.0.1:8080"
+
+
+def test_url_rebuilds_when_only_port_overridden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HERMES_THING_PORT", "9090")
+    cfg = Config(
+        name="thing",
+        title="T",
+        bin="t",
+        subcommand=("s",),
+        host="localhost",
+        port=8080,
+        url="http://localhost:8080",
+        icon_dir=Path("/"),
+        icon_fallback="f",
+    )
+    assert cfg.url == "http://localhost:9090"
+
+
+def test_url_preserves_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The router's URL ends in '/dashboard' — must survive override."""
+    monkeypatch.setenv("HERMES_ROUTER_HOST", "10.0.0.1")
+    cfg = Config(
+        name="router",
+        title="R",
+        bin="r",
+        subcommand=("s",),
+        host="localhost",
+        port=8319,
+        url="http://localhost:8319/dashboard",
+        icon_dir=Path("/"),
+        icon_fallback="f",
+    )
+    assert cfg.url == "http://10.0.0.1:8319/dashboard"
+
+
+def test_url_env_var_takes_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If the user sets HERMES_*_URL explicitly, use it verbatim."""
+    monkeypatch.setenv("HERMES_THING_HOST", "10.0.0.1")
+    monkeypatch.setenv("HERMES_THING_URL", "https://custom.example.com/x")
+    cfg = Config(
+        name="thing",
+        title="T",
+        bin="t",
+        subcommand=("s",),
+        host="localhost",
+        port=8080,
+        url="http://localhost:8080",
+        icon_dir=Path("/"),
+        icon_fallback="f",
+    )
+    assert cfg.url == "https://custom.example.com/x"
+
+
+def test_url_strips_default_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When port matches the scheme's default, the URL shouldn't show it."""
+    monkeypatch.setenv("HERMES_THING_HOST", "10.0.0.1")
+    monkeypatch.setenv("HERMES_THING_PORT", "80")
+    cfg = Config(
+        name="thing",
+        title="T",
+        bin="t",
+        subcommand=("s",),
+        host="localhost",
+        port=8080,
+        url="http://localhost:8080",
+        icon_dir=Path("/"),
+        icon_fallback="f",
+    )
+    assert cfg.url == "http://10.0.0.1"
+
+
 def test_env_var_port_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HERMES_THING_PORT", "9090")
     cfg = Config(

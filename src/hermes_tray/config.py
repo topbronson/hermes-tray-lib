@@ -132,6 +132,31 @@ class Config:
         object.__setattr__(self, "auto_start", _env_bool(prefix + "AUTO_START", self.auto_start))
         object.__setattr__(self, "browser_cmd", _env_str(prefix + "BROWSER_CMD", self.browser_cmd))
 
+        # If the user set HERMES_*_HOST (or _PORT) but not _URL, rebuild
+        # the URL from the now-overridden host/port. Otherwise the URL
+        # is stuck at the original-default value (e.g. "localhost") and
+        # the "Open" menu opens the wrong address.
+        if prefix + "URL" not in os.environ:
+            from urllib.parse import urlparse, urlunparse
+
+            parsed = urlparse(self.url)
+            # Default-port-per-scheme: 80 for http, 443 for https. If
+            # the port matches the scheme's default, omit it from the
+            # netloc (cleaner URL, no semantic change).
+            default_port = {"http": 80, "https": 443}.get(
+                parsed.scheme or "http", 80
+            )
+            netloc = (
+                self.host
+                if self.port == default_port
+                else f"{self.host}:{self.port}"
+            )
+            object.__setattr__(
+                self,
+                "url",
+                urlunparse(parsed._replace(netloc=netloc)),
+            )
+
         # Default log/state/lock paths
         if not self.log_path:
             object.__setattr__(self, "log_path", f"~/.cache/hermes-{self.name}.log")
